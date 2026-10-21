@@ -6,13 +6,15 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import '../connection.dart';
 import '../protocol.dart';
 import '../theme.dart';
+import '../updater.dart';
 import '../widgets/deck_key.dart';
 import '../widgets/deck_slider.dart';
 
 class DeckScreen extends StatefulWidget {
-  const DeckScreen({super.key, required this.connection});
+  const DeckScreen({super.key, required this.connection, this.updater});
 
   final DeckConnection connection;
+  final Updater? updater;
 
   @override
   State<DeckScreen> createState() => _DeckScreenState();
@@ -71,6 +73,13 @@ class _DeckScreenState extends State<DeckScreen> {
               ),
               if (folders.length > 1) _FolderTabs(folders: folders, selected: index, onSelected: (i) => setState(() => _folder = i)),
               const SizedBox(height: 12),
+              if (widget.updater case final updater?)
+                ListenableBuilder(
+                  listenable: updater,
+                  builder: (context, _) => updater.available == null
+                      ? const SizedBox.shrink()
+                      : Padding(padding: const EdgeInsets.only(bottom: 12), child: _UpdateBanner(updater: updater)),
+                ),
               if (notice != null) ...[_Notice(text: notice), const SizedBox(height: 12)],
               Expanded(
                 child: folders.isEmpty
@@ -166,6 +175,53 @@ class _FolderTabs extends StatelessWidget {
   }
 }
 
+class _UpdateBanner extends StatelessWidget {
+  const _UpdateBanner({required this.updater});
+
+  final Updater updater;
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = updater.progress;
+    return Semantics(
+      liveRegion: true,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
+        decoration: BoxDecoration(color: Palette.surface, border: Border.all(color: Palette.line), borderRadius: BorderRadius.circular(12)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    progress == null ? 'Új verzió a gépen: ${updater.available!.versionName}' : 'Letöltés: ${(progress * 100).round()}%',
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                  ),
+                ),
+                TextButton(
+                  onPressed: progress == null ? updater.start : null,
+                  child: const Text('Frissítés', style: TextStyle(fontWeight: FontWeight.w600)),
+                ),
+              ],
+            ),
+            if (progress != null)
+              Padding(
+                padding: const EdgeInsets.only(right: 6, bottom: 4),
+                child: LinearProgressIndicator(value: progress, minHeight: 3, color: Palette.ink, backgroundColor: Palette.line),
+              ),
+            if (updater.error != null)
+              Padding(
+                padding: const EdgeInsets.only(right: 6, bottom: 2),
+                child: Text(updater.error!, style: const TextStyle(fontSize: 13, color: Palette.alertInk)),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _Notice extends StatelessWidget {
   const _Notice({required this.text});
 
@@ -199,8 +255,8 @@ class _Grid extends StatelessWidget {
       builder: (context, constraints) {
         final cellWidth = (constraints.maxWidth - _gap * (folder.columns - 1)) / folder.columns;
         final fitted = (constraints.maxHeight - _gap * (folder.rows - 1)) / folder.rows;
-        // Never squeeze a key below a comfortable touch target; scroll instead.
-        final cellHeight = math.max(64.0, math.min(fitted, cellWidth * 1.15));
+        // Never squeeze a key below what its icon and label need (about 66px); scroll instead.
+        final cellHeight = math.max(72.0, math.min(fitted, cellWidth * 1.15));
         final height = cellHeight * folder.rows + _gap * (folder.rows - 1);
         return SingleChildScrollView(
           child: SizedBox(

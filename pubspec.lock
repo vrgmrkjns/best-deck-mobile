@@ -50,7 +50,7 @@ packages:
     source: hosted
     version: "1.19.1"
   crypto:
-    dependency: transitive
+    dependency: "direct dev"
     description:
       name: crypto
       sha256: c8ea0233063ba03258fbcf2ca4d6dadfefe14f02fab57702265467a19f27fadf
@@ -137,7 +137,7 @@ packages:
     source: sdk
     version: "0.0.0"
   http:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: http
       sha256: "87721a4a50b19c7f1d49001e51409bddc46303966ce89a65af4f4e6004896412"
@@ -208,8 +208,16 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.18.3"
+  ota_update:
+    dependency: "direct main"
+    description:
+      name: ota_update
+      sha256: "1f4c7c3c4f306729a6c00b84435096ce2d8b28439013f7237173acc699b2abc8"
+      url: "https://pub.dev"
+    source: hosted
+    version: "7.1.0"
   package_info_plus:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: package_info_plus
       sha256: "73ef2cd5c11a7548f9b7f6fc2a4f6113de2e64aa2a70de63feede95548822908"

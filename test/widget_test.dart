@@ -4,8 +4,11 @@ import 'dart:convert';
 import 'package:best_deck/connection.dart';
 import 'package:best_deck/main.dart';
 import 'package:best_deck/protocol.dart';
+import 'package:best_deck/updater.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 class MemoryStore implements Store {
@@ -190,5 +193,80 @@ void main() {
     expect(find.text('12'), findsOneWidget);
 
     await tester.pump(const Duration(milliseconds: 200));
+  });
+
+  group('updates', () {
+    Updater updater(http.Response Function(http.Request) reply, {int installed = 2, Installer? install}) => Updater(
+      client: MockClient((request) async => reply(request)),
+      currentBuild: () async => installed,
+      install: install ?? (url, sha) => const Stream.empty(),
+    );
+    final release = http.Response('{"version_code":3,"version_name":"1.2.0","sha256":"ab"}', 200);
+    final host = Uri.parse('ws://192.168.0.5:8191/client');
+
+    test('offers a newer build from the same host', () async {
+      late Uri asked;
+      final subject = updater((request) {
+        asked = request.url;
+        return release;
+      });
+      await subject.check(host);
+      expect(asked.toString(), 'http://192.168.0.5:8191/app/version');
+      expect(subject.available!.versionName, '1.2.0');
+    });
+
+    test('offers nothing when current, missing or malformed', () async {
+      for (final (reply, installed) in [
+        (release, 3),
+        (http.Response('', 404), 1),
+        (http.Response('{"version_code":"3"}', 200), 1),
+        (http.Response('not json', 200), 1),
+      ]) {
+        final subject = updater((_) => reply, installed: installed);
+        await subject.check(host);
+        expect(subject.available, isNull);
+      }
+    });
+
+    test('downloads the APK from the host with its checksum', () async {
+      final calls = <(Uri, String)>[];
+      final subject = updater((_) => release, install: (url, sha) {
+        calls.add((url, sha));
+        return Stream.fromIterable([0.5, 1]);
+      });
+      await subject.check(host);
+      await subject.start();
+      expect(calls.single.$1.toString(), 'http://192.168.0.5:8191/app/best-deck.apk');
+      expect(calls.single.$2, 'ab');
+      expect(subject.progress, isNull);
+      expect(subject.error, isNull);
+    });
+
+    test('reports a failed install', () async {
+      final subject = updater((_) => release, install: (_, _) => Stream.error('A letöltött fájl sérült.'));
+      await subject.check(host);
+      await subject.start();
+      expect(subject.error, contains('sérült'));
+    });
+  });
+
+  testWidgets('the deck offers the update', (tester) async {
+    final channel = FakeChannel();
+    final connection = DeckConnection(store: MemoryStore(), open: (_) => channel);
+    final updater = Updater(
+      client: MockClient((_) async => http.Response('{"version_code":9,"version_name":"2.0.0","sha256":"ab"}', 200)),
+      currentBuild: () async => 2,
+      install: (_, _) => const Stream.empty(),
+    );
+    await tester.pumpWidget(BestDeckApp(connection: connection, updater: updater));
+    connection.connect('192.168.0.5');
+    await deliver(tester);
+    channel.host({'type': 'paired', 'token': 't'});
+    channel.host(deck);
+    await deliver(tester);
+    await tester.runAsync(() => updater.check(connection.uri!));
+    await deliver(tester);
+    expect(find.text('Új verzió a gépen: 2.0.0'), findsOneWidget);
+    expect(find.text('Frissítés'), findsOneWidget);
   });
 }

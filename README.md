@@ -16,11 +16,23 @@ The app remembers the PC and reconnects on its own. Tap the PC's name on the dec
 flutter build apk --release
 ```
 
-The APK lands in `build/app/outputs/flutter-apk/app-release.apk`. Release builds are signed with the debug key for now, which is fine for installing on your own phone but not for a store.
+The APK lands in `build/app/outputs/flutter-apk/app-release.apk`.
 
 ```bash
 flutter test
 ```
+
+## Releases and updates
+
+Phones update themselves from the PC: the host serves the newest APK, and the app offers it when the host's build is newer than its own.
+
+```bash
+dart run tool/publish.dart --bump
+```
+
+This raises the build number, builds a signed release APK and copies it with its version and SHA-256 into `%APPDATA%\best-deck\updates`. The phone shows "Új verzió a gépen" on its next connection; one tap downloads it, checks the checksum and opens the Android installer.
+
+Android installs an update only when it is signed with the same key as the installed app. Release builds are signed with the key described in `android/key.properties` (not in git). **Back up that file and the keystore it points to**: without them no phone can be updated, only reinstalled. Without `key.properties` a build falls back to the debug key, and `publish.dart` refuses to publish it.
 
 ## Protocol
 
