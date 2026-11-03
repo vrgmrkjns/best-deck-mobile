@@ -1,13 +1,13 @@
 [package]
 name = "best-deck-mobile"
 # Shown on the phone as the app's version.
-version = "2.0.1"
+version = "2.0.4"
 edition = "2024"
 publish = false
 
 [package.metadata.android]
 # Android's versionCode. Every release needs a higher one; `cargo xtask publish --bump` raises it.
-version-code = 7
+version-code = 10
 
 [lib]
 name = "best_deck"
@@ -20,8 +20,8 @@ path = "src/main.rs"
 [dependencies]
 eframe = { version = "0.37", default-features = false, features = ["default_fonts", "glow"] }
 egui = "0.37"
-egui_extras = { version = "0.37", features = ["svg"] }
-image = { version = "0.25", default-features = false, features = ["png"] }
+egui_extras = { version = "0.37", features = ["svg", "gif", "file"] }
+image = { version = "0.25", default-features = false, features = ["png", "gif"] }
 log = "0.4"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

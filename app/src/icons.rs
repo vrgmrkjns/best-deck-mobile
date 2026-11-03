@@ -36,6 +36,17 @@ pub const ICONS: &[(&str, &str)] = &[
     ("globe", r#"<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>"#),
 ];
 
+/// Prefix of a key icon that is a picture added on the PC, such as `custom:0f3a9c2b11d4e5f6.png`.
+pub const CUSTOM: &str = "custom:";
+
+/// The file name of a custom icon, if `icon` is one and well-formed: `<16 hex digits>.svg|png|gif`.
+pub fn custom_file(icon: &str) -> Option<&str> {
+    let file = icon.strip_prefix(CUSTOM)?;
+    let (stem, ext) = file.split_once('.')?;
+    let ok = stem.len() == 16 && stem.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b)) && matches!(ext, "svg" | "png" | "gif");
+    ok.then_some(file)
+}
+
 /// The body of `name`, or the dot for an unknown name.
 pub fn body(name: &str) -> &'static str {
     ICONS.iter().find(|(n, _)| *n == name).unwrap_or(&ICONS[0]).1

@@ -32,6 +32,8 @@ pub struct App {
     checked_links: u64,
     screen_kept_on: bool,
     folder: usize,
+    /// Folders shown before, for keys that go back.
+    history: Vec<usize>,
     /// The sheet about the connected PC is open.
     sheet: bool,
     /// The address being typed on the keypad.
@@ -50,6 +52,8 @@ impl App {
         egui_extras::install_image_loaders(&cc.egui_ctx);
         let ctx = cc.egui_ctx.clone();
         let waker = ctx.clone();
+        let painter = ctx.clone();
+        theme::init_pictures(platform.data_dir().join("icons"), move || painter.request_repaint());
         let store = Store::open(&platform.data_dir());
         let mut connection = Connection::new(store, platform.device_name(), move || waker.request_repaint());
         connection.restore();
@@ -63,6 +67,7 @@ impl App {
             checked_links: 0,
             screen_kept_on: false,
             folder: 0,
+            history: Vec::new(),
             sheet: false,
             address,
             typing: false,
@@ -84,6 +89,7 @@ impl App {
             (model.phase, model.online, model.links, model.host.clone())
         };
         let ready = phase == Phase::Ready;
+        theme::set_picture_host(host.clone());
         if ready {
             self.finder.stop();
         } else if !self.finder.is_running() {

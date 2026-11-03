@@ -1,5 +1,9 @@
 //! The deck's palette: monochrome chrome, colour only on the keys.
 
+use std::collections::HashSet;
+use std::path::PathBuf;
+use std::sync::{Mutex, OnceLock};
+
 use egui::epaint::text::{FontInsert, FontPriority, InsertFontFamily};
 use egui::{Color32, FontFamily, FontId, Image, Stroke, Vec2};
 
@@ -12,7 +16,6 @@ pub const KEY_BOTTOM: Color32 = Color32::from_rgb(0x14, 0x15, 0x18);
 pub const KEY_FACE: Color32 = Color32::from_rgb(0x18, 0x1A, 0x1D);
 pub const LINE: Color32 = Color32::from_rgb(0x26, 0x28, 0x2C);
 pub const LINE_STRONG: Color32 = Color32::from_rgb(0x33, 0x36, 0x3B);
-pub const TAB_LINE: Color32 = Color32::from_rgb(0x1E, 0x20, 0x23);
 pub const INK: Color32 = Color32::from_rgb(0xF2, 0xF3, 0xF5);
 pub const BODY: Color32 = Color32::from_rgb(0xC9, 0xCB, 0xD1);
 pub const MUTE: Color32 = Color32::from_rgb(0x9A, 0x9C, 0xA3);
@@ -37,8 +40,77 @@ pub fn mix(top: Color32, amount: f32, base: Color32) -> Color32 {
     Color32::from_rgb(channel(top.r(), base.r()), channel(top.g(), base.g()), channel(top.b(), base.b()))
 }
 
-/// A key icon of `size` points in `color`. The SVG is rendered once in white and tinted.
+/// Pictures added as icons on the PC: downloaded once into the app's files, then drawn from there.
+struct Pictures {
+    dir: PathBuf,
+    /// `host:port` of the PC to fetch from.
+    host: Mutex<Option<String>>,
+    /// Files being fetched, or that failed a moment ago.
+    asked: Mutex<HashSet<String>>,
+    waker: Box<dyn Fn() + Send + Sync>,
+}
+
+static PICTURES: OnceLock<Pictures> = OnceLock::new();
+
+/// Where downloaded pictures go, and how to ask for a repaint once one arrives.
+pub fn init_pictures(dir: PathBuf, waker: impl Fn() + Send + Sync + 'static) {
+    let _ = PICTURES.set(Pictures { dir, host: Mutex::new(None), asked: Mutex::default(), waker: Box::new(waker) });
+}
+
+/// The PC new pictures are fetched from.
+pub fn set_picture_host(host: Option<String>) {
+    if let Some(pictures) = PICTURES.get() {
+        *pictures.host.lock().unwrap() = host;
+    }
+}
+
+/// The local file of a custom icon, fetching it in the background when it is missing.
+fn picture(file: &str) -> Option<PathBuf> {
+    let pictures = PICTURES.get()?;
+    let path = pictures.dir.join(file);
+    if path.exists() {
+        return Some(path);
+    }
+    let host = pictures.host.lock().unwrap().clone()?;
+    if !pictures.asked.lock().unwrap().insert(file.to_owned()) {
+        return None;
+    }
+    let file = file.to_owned();
+    std::thread::spawn(move || {
+        let fetched = ureq::get(format!("http://{host}/icons/{file}"))
+            .call()
+            .ok()
+            .and_then(|mut response| response.body_mut().with_config().limit(6 * 1024 * 1024).read_to_vec().ok());
+        let pictures = PICTURES.get().expect("set before any fetch");
+        match fetched {
+            Some(bytes) => {
+                let _ = std::fs::create_dir_all(&pictures.dir);
+                // Written aside first, so a half file is never drawn.
+                let temp = pictures.dir.join(format!("{file}.part"));
+                if std::fs::write(&temp, bytes).is_ok() {
+                    let _ = std::fs::rename(&temp, pictures.dir.join(&file));
+                }
+                (pictures.waker)();
+            }
+            None => {
+                // Try again a little later, not on every frame.
+                std::thread::sleep(std::time::Duration::from_secs(15));
+            }
+        }
+        pictures.asked.lock().unwrap().remove(&file);
+    });
+    None
+}
+
+/// A key icon of `size` points in `color`. Built-in icons are rendered once in white and tinted;
+/// a picture added on the PC keeps its own colours and only fades with a faded key.
 pub fn icon(name: &str, color: Color32, size: f32) -> Image<'static> {
+    if let Some(path) = icons::custom_file(name).and_then(picture) {
+        let alpha = f32::from(color.a()) / 255.0;
+        let uri = format!("file:///{}", path.to_string_lossy().replace('\\', "/").trim_start_matches('/'));
+        return Image::new(uri).tint(Color32::WHITE.gamma_multiply(alpha)).fit_to_exact_size(Vec2::splat(size));
+    }
+    let name = if name.starts_with(icons::CUSTOM) { "dot" } else { name };
     Image::from_bytes(format!("bytes://icon/{name}.svg"), icons::svg(name, "#FFFFFF").into_bytes())
         .tint(color)
         .fit_to_exact_size(Vec2::splat(size))

@@ -16,20 +16,18 @@ const SLIDE_EVERY: Duration = Duration::from_millis(50);
 
 impl App {
     pub(super) fn deck_screen(&mut self, ui: &mut Ui) {
-        let (profile, online, host, folders, error) = {
+        let (profile, online, folders, error) = {
             let model = self.connection.model();
-            (model.profile.clone(), model.online, model.host.clone().unwrap_or_default(), model.folders.clone(), model.error.clone())
+            (model.profile.clone(), model.online, model.folders.clone(), model.error.clone())
         };
         let index = self.folder.min(folders.len().saturating_sub(1));
+        self.folder = index;
         egui::Frame::new().inner_margin(egui::Margin::symmetric(16, 12)).show(ui, |ui| {
             ui.set_width(ui.available_width());
             ui.spacing_mut().item_spacing.y = 0.0;
-            self.header(ui, &profile, &host, online);
-            if folders.len() > 1 {
-                if let Some(chosen) = folder_tabs(ui, &folders, index) {
-                    self.folder = chosen;
-                }
-            }
+            // The folder on show is the title; folders are opened with folder keys.
+            let title = folders.get(index).map_or(profile.as_str(), |f| f.name.as_str());
+            self.header(ui, title, online);
             ui.add_space(12.0);
             self.update_banner(ui);
             let text = if !online { Some("Nincs kapcsolat a géppel. Újrapróbálom.".to_owned()) } else { error };
@@ -48,14 +46,14 @@ impl App {
             }
         });
         if self.sheet {
-            self.host_sheet(ui, &host, online);
+            self.host_sheet(ui, online);
         }
     }
 
-    fn header(&mut self, ui: &mut Ui, profile: &str, host: &str, online: bool) {
+    fn header(&mut self, ui: &mut Ui, title: &str, online: bool) {
         let (rect, _) = ui.allocate_exact_size(vec2(ui.available_width(), 44.0), Sense::hover());
-        let ip = host.rsplit_once(':').map_or(host, |(ip, _)| ip);
-        let chip = ui.painter().layout_no_wrap(ip.to_owned(), font(13.0), BODY);
+        let status = if online { "Csatlakozva a géphez" } else { "Nincs kapcsolat" };
+        let chip = ui.painter().layout_no_wrap(status.to_owned(), font(13.0), BODY);
         let chip_rect = Rect::from_min_max(pos2(rect.right() - chip.size().x - 34.0, rect.top()), rect.right_bottom());
         let response = ui.interact(chip_rect, ui.make_persistent_id("host-chip"), Sense::click());
         if response.is_pointer_button_down_on() {
@@ -66,7 +64,7 @@ impl App {
         if response.clicked() {
             self.sheet = true;
         }
-        let title = one_line(ui, profile, strong_font(24.0), INK, chip_rect.left() - rect.left() - 12.0);
+        let title = one_line(ui, title, strong_font(24.0), INK, chip_rect.left() - rect.left() - 12.0);
         ui.painter().galley(pos2(rect.left(), rect.center().y - title.size().y / 2.0), title, INK);
     }
 
@@ -154,14 +152,17 @@ impl App {
 
     /// One key of the deck. Sinks the moment a finger lands; fires when it lifts.
     fn key(&mut self, ui: &mut Ui, rect: Rect, key: &DeckKey, state: Option<&KeyState>, online: bool) {
-        let usable = online && key.available;
+        // Moving between folders happens here on the phone, so it works offline too.
+        let navigates = key.open_folder.is_some() || key.back;
+        let usable = (online && key.available) || navigates;
         let id = ui.make_persistent_id(("key", &key.id));
         let response = ui.interact(rect, id, if usable { Sense::click() } else { Sense::hover() });
         let down = usable && response.is_pointer_button_down_on();
         let scale = ui.ctx().animate_bool_with_time(id.with("down"), down, 0.12);
         let rect = Rect::from_center_size(rect.center(), rect.size() * (1.0 - 0.05 * scale));
 
-        let lit = state.is_some_and(|s| s.lit);
+        // A key that opens the folder on show lights, like a tab.
+        let lit = state.is_some_and(|s| s.lit) || key.open_folder == Some(self.folder);
         let color = group(&key.group);
         let fade = |c: Color32| if usable { c } else { c.gamma_multiply(0.42) };
         let (fill, border) = if lit { (mix(color, 0.40, KEY_TOP), color) } else { (KEY_FACE, LINE) };
@@ -188,6 +189,12 @@ impl App {
         if response.clicked() {
             self.platform.tick();
             self.connection.press(&key.id);
+            if let Some(target) = key.open_folder.filter(|&target| target != self.folder) {
+                self.history.push(self.folder);
+                self.folder = target;
+            } else if key.back {
+                self.folder = self.history.pop().unwrap_or(0);
+            }
         }
     }
 
@@ -245,7 +252,7 @@ impl App {
         ui.painter().text(inner.left_bottom(), Align2::LEFT_BOTTOM, number, figures(22.0), fade(INK));
     }
 
-    fn host_sheet(&mut self, ui: &mut Ui, host: &str, online: bool) {
+    fn host_sheet(&mut self, ui: &mut Ui, online: bool) {
         let ctx = ui.ctx().clone();
         let screen = ctx.content_rect();
         let mut close = false;
@@ -274,14 +281,20 @@ impl App {
                         ui.painter().rect_filled(handle, 2.0, LINE_STRONG);
                     });
                     ui.add_space(18.0);
-                    ui.label(RichText::new(host).font(strong_font(17.0)).color(INK));
+                    let (heading, line) = if online {
+                        ("Csatlakozva a géphez", "A gombok ezen a gépen futnak.")
+                    } else {
+                        ("Nincs kapcsolat a géppel", "Újrapróbálom; addig a gombok szürkék.")
+                    };
+                    ui.label(RichText::new(heading).font(strong_font(17.0)).color(INK));
                     ui.add_space(4.0);
-                    ui.label(RichText::new(if online { "Csatlakozva" } else { "Nincs kapcsolat" }).color(MUTE));
+                    ui.label(RichText::new(line).color(MUTE));
                     ui.add_space(20.0);
                     if outlined_button(ui, "Másik gép választása").clicked() {
                         self.sheet = false;
                         self.typing = false;
                         self.folder = 0;
+                        self.history.clear();
                         self.connection.forget();
                     }
                 });
@@ -290,32 +303,6 @@ impl App {
             self.sheet = false;
         }
     }
-}
-
-fn folder_tabs(ui: &mut Ui, folders: &[DeckFolder], selected: usize) -> Option<usize> {
-    let mut chosen = None;
-    let top = ui.cursor().top();
-    egui::ScrollArea::horizontal().id_salt("folders").show(ui, |ui| {
-        ui.horizontal(|ui| {
-            ui.spacing_mut().item_spacing.x = 22.0;
-            for (index, folder) in folders.iter().enumerate() {
-                let current = index == selected;
-                let font_id = if current { strong_font(15.0) } else { font(15.0) };
-                let galley = ui.painter().layout_no_wrap(folder.name.clone(), font_id, if current { INK } else { MUTE });
-                let (rect, response) = ui.allocate_exact_size(vec2(galley.size().x, 44.0), Sense::click());
-                ui.painter().galley(pos2(rect.left(), rect.center().y - galley.size().y / 2.0), galley, MUTE);
-                if current {
-                    ui.painter().rect_filled(Rect::from_min_max(pos2(rect.left(), rect.bottom() - 2.0), rect.right_bottom()), 0.0, INK);
-                }
-                if response.clicked() {
-                    chosen = Some(index);
-                }
-            }
-        });
-    });
-    let bottom = top + 44.0;
-    ui.painter().hline(ui.max_rect().x_range(), bottom, Stroke::new(1.0, TAB_LINE));
-    chosen
 }
 
 /// One line of text cut with an ellipsis to `width`.

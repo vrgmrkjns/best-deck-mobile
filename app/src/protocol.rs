@@ -41,6 +41,12 @@ pub struct DeckKey {
     /// Icon while lit, such as a crossed-out microphone; the normal icon otherwise.
     #[serde(default)]
     pub lit_icon: Option<String>,
+    /// The folder, by position, to show when the key is pressed.
+    #[serde(default)]
+    pub open_folder: Option<usize>,
+    /// Go back to the folder shown before.
+    #[serde(default)]
+    pub back: bool,
 }
 
 fn yes() -> bool {
@@ -180,6 +186,10 @@ mod tests {
 
         let state: HostMsg = serde_json::from_str(r#"{"type":"state","action":"key.m","lit":true}"#).unwrap();
         assert_eq!(state, HostMsg::State { action: "key.m".into(), lit: true, label: None });
+        let folder: DeckKey = serde_json::from_str(r#"{"id":"f","row":0,"col":0,"open_folder":2}"#).unwrap();
+        assert_eq!((folder.open_folder, folder.back), (Some(2), false));
+        let back: DeckKey = serde_json::from_str(r#"{"id":"b","row":0,"col":0,"back":true}"#).unwrap();
+        assert_eq!((back.open_folder, back.back), (None, true));
         let unknown: HostMsg = serde_json::from_str(r#"{"type":"something_new","x":1}"#).unwrap();
         assert_eq!(unknown, HostMsg::Unknown);
     }
