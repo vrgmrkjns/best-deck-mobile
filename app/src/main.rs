@@ -5,8 +5,8 @@
 //! `BEST_DECK_PHONE_DATA` keeps its pairing apart; `BEST_DECK_SCREENSHOT` saves a picture and exits.
 
 fn main() -> eframe::Result {
-    let viewport = egui::ViewportBuilder::default().with_title("best-deck (telefon)").with_inner_size([412.0, 892.0]);
+    let viewport = egui::ViewportBuilder::default().with_title("BestDeck (telefon)").with_inner_size([412.0, 892.0]);
     let options = eframe::NativeOptions { viewport, ..Default::default() };
     let platform = best_deck::platform::Platform::new();
-    eframe::run_native("best-deck-phone", options, Box::new(move |cc| Ok(Box::new(best_deck::ui::App::new(cc, platform)))))
+    eframe::run_native("BestDeck phone", options, Box::new(move |cc| Ok(Box::new(best_deck::ui::App::new(cc, platform)))))
 }

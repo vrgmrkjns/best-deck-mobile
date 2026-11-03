@@ -1,13 +1,13 @@
-# best-deck (phone app)
+# BestDeck (phone app)
 
-The phone side of best-deck: a grid of keys that run actions on your PC. It talks to the
+The phone side of BestDeck: a grid of keys that run actions on your PC. It talks to the
 [Windows host](https://github.com/vrgmrkjns/best-deck-windows) over the local network. No account, no cloud.
 
 The whole app is Rust: [egui](https://github.com/emilk/egui) drawn through Android's `NativeActivity`, with no Java or Kotlin in the APK.
 
 ## Use
 
-1. Start best-deck on the PC.
+1. Start BestDeck on the PC.
 2. Open the app on a phone on the same Wi-Fi. It finds the PC by itself (a UDP question on port 8191); tap it. If it does not show up, choose **Cím megadása kézzel** and type the address the editor's **Eszközök** tab shows.
 3. Type the six-digit pairing code from the same tab, on the app's own keypad.
 

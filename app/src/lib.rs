@@ -16,7 +16,7 @@ fn android_main(app: winit::platform::android::activity::AndroidApp) {
     android_logger::init_once(android_logger::Config::default().with_max_level(log::LevelFilter::Info).with_tag("best-deck"));
     let platform = platform::Platform::new(app.clone());
     let options = eframe::NativeOptions { android_app: Some(app), ..Default::default() };
-    if let Err(error) = eframe::run_native("best-deck", options, Box::new(move |cc| Ok(Box::new(ui::App::new(cc, platform))))) {
-        log::error!("best-deck stopped: {error}");
+    if let Err(error) = eframe::run_native("BestDeck", options, Box::new(move |cc| Ok(Box::new(ui::App::new(cc, platform))))) {
+        log::error!("BestDeck stopped: {error}");
     }
 }

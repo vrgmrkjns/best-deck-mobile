@@ -23,9 +23,9 @@ impl App {
                 ui.label(RichText::new(title).font(strong_font(30.0)).color(INK));
                 ui.add_space(8.0);
                 let lead = if pairing {
-                    "Írd be a hat számjegyet, amit a gépen a best-deck szerkesztő Eszközök füle mutat. Egy gépet csak egyszer kell párosítani."
+                    "Írd be a hat számjegyet, amit a gépen a BestDeck szerkesztő Eszközök füle mutat. Egy gépet csak egyszer kell párosítani."
                 } else {
-                    "Indítsd el a best-decket a gépen. A telefon és a gép legyen ugyanazon a Wi-Fi-n, így a telefon magától megtalálja."
+                    "Indítsd el a BestDecket a gépen. A telefon és a gép legyen ugyanazon a Wi-Fi-n, így a telefon magától megtalálja."
                 };
                 ui.label(RichText::new(lead).size(15.0).color(MUTE));
                 ui.add_space(28.0);
