@@ -11,6 +11,8 @@ use crate::protocol::{DeckFolder, DeckKey, KeyState};
 use crate::updater::Update;
 
 const GAP: f32 = 10.0;
+/// The narrowest a key gets, about a fingertip; wider grids scroll sideways.
+const MIN_KEY_WIDTH: f32 = 60.0;
 /// About twenty slider updates a second feels live without flooding the host.
 const SLIDE_EVERY: Duration = Duration::from_millis(50);
 
@@ -123,16 +125,17 @@ impl App {
     fn grid(&mut self, ui: &mut Ui, folder: &DeckFolder, online: bool) {
         let columns = f32::from(folder.columns.max(1));
         let rows = f32::from(folder.rows.max(1));
-        let width = ui.available_width();
-        let cell_width = (width - GAP * (columns - 1.0)) / columns;
+        // Never squeeze a key below a fingertip, or below what its icon and label need; a grid
+        // too big for the screen (up to 16 by 16) scrolls instead, sideways too.
+        let cell_width = ((ui.available_width() - GAP * (columns - 1.0)) / columns).max(MIN_KEY_WIDTH);
         let fitted = (ui.available_height() - GAP * (rows - 1.0)) / rows;
-        // Never squeeze a key below what its icon and label need; scroll instead.
         let cell_height = fitted.min(cell_width * 1.15).max(72.0);
+        let width = cell_width * columns + GAP * (columns - 1.0);
         let height = cell_height * rows + GAP * (rows - 1.0);
         let states = self.connection.model().states.clone();
         let levels = self.connection.model().levels.clone();
 
-        egui::ScrollArea::vertical().auto_shrink(false).show(ui, |ui| {
+        egui::ScrollArea::both().auto_shrink(false).show(ui, |ui| {
             let (area, _) = ui.allocate_exact_size(vec2(width, height), Sense::hover());
             for key in &folder.keys {
                 let span = f32::from(key.span());
