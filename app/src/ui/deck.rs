@@ -180,14 +180,23 @@ impl App {
             _ => key.label.clone(),
         };
         let icon_name = if lit { key.lit_icon.as_deref().unwrap_or(&key.icon) } else { &key.icon };
-        let ink = if lit { Color32::WHITE } else { BODY };
-        let font_id = if lit { strong_font(12.0) } else { font(12.0) };
-        let galley = one_line(ui, &label, font_id, fade(ink), rect.width() - 12.0);
-        let content = 28.0 + 8.0 + galley.size().y;
-        let top = rect.center().y - content / 2.0;
-        icon(icon_name, fade(if lit { Color32::WHITE } else { color }), 28.0)
-            .paint_at(ui, Rect::from_center_size(pos2(rect.center().x, top + 14.0), vec2(28.0, 28.0)));
-        ui.painter().galley(pos2(rect.center().x - galley.size().x / 2.0, top + 36.0), galley, fade(ink));
+        let icon_color = fade(if lit { Color32::WHITE } else { color });
+        if label.trim().is_empty() {
+            // A key without a name is all icon; the border stays on top to show it lit.
+            paint_key_icon(ui, icon_name, icon_color, rect.shrink(1.0), 13);
+            ui.painter().rect_stroke(rect, 14.0, Stroke::new(if lit { 2.0 } else { 1.0 }, fade(border)), egui::StrokeKind::Inside);
+        } else {
+            let ink = if lit { Color32::WHITE } else { BODY };
+            let font_id = if lit { strong_font(12.0) } else { font(12.0) };
+            let galley = key_label(ui, &label, font_id, fade(ink), rect.width() - 12.0);
+            // A long name wraps and takes room from the icon.
+            let gap = 6.0;
+            let icon_size = (rect.height() - 14.0 - gap - galley.size().y).clamp(16.0, 28.0);
+            let top = rect.center().y - (icon_size + gap + galley.size().y) / 2.0;
+            icon(icon_name, icon_color, icon_size)
+                .paint_at(ui, Rect::from_center_size(pos2(rect.center().x, top + icon_size / 2.0), vec2(icon_size, icon_size)));
+            ui.painter().galley(pos2(rect.center().x, top + icon_size + gap), galley, fade(ink));
+        }
 
         if response.clicked() {
             self.platform.tick();

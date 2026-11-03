@@ -116,6 +116,48 @@ pub fn icon(name: &str, color: Color32, size: f32) -> Image<'static> {
         .fit_to_exact_size(Vec2::splat(size))
 }
 
+/// The part of a picture that fills `area` without stretching: its middle, cut to the area's shape.
+pub fn cover_uv(image: Vec2, area: Vec2) -> egui::Rect {
+    let full = egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0));
+    if image.x <= 0.0 || image.y <= 0.0 || area.x <= 0.0 || area.y <= 0.0 {
+        return full;
+    }
+    let (picture, wanted) = (image.x / image.y, area.x / area.y);
+    if picture > wanted {
+        let keep = wanted / picture;
+        egui::Rect::from_min_max(egui::pos2((1.0 - keep) / 2.0, 0.0), egui::pos2((1.0 + keep) / 2.0, 1.0))
+    } else {
+        let keep = picture / wanted;
+        egui::Rect::from_min_max(egui::pos2(0.0, (1.0 - keep) / 2.0), egui::pos2(1.0, (1.0 + keep) / 2.0))
+    }
+}
+
+/// A key without a name is its icon: a picture covers the whole key, a built-in icon (or a
+/// picture still on its way from the PC) is drawn large in the middle.
+pub fn paint_key_icon(ui: &egui::Ui, name: &str, color: Color32, rect: egui::Rect, radius: u8) {
+    if icons::custom_file(name).and_then(picture).is_some() {
+        let image = icon(name, color, rect.width()).corner_radius(radius);
+        let uv = image
+            .load_for_size(ui.ctx(), rect.size())
+            .ok()
+            .and_then(|poll| poll.size())
+            .map_or_else(|| egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)), |size| cover_uv(size, rect.size()));
+        image.uv(uv).paint_at(ui, rect);
+    } else {
+        let size = rect.width().min(rect.height()) * 0.5;
+        icon(name, color, size).paint_at(ui, egui::Rect::from_center_size(rect.center(), Vec2::splat(size)));
+    }
+}
+
+/// A key's name, centred and wrapped to `width`, three lines at most; the last ends in `…`
+/// when even that is not enough.
+pub fn key_label(ui: &egui::Ui, text: &str, font: FontId, color: Color32, width: f32) -> std::sync::Arc<egui::Galley> {
+    let mut job = egui::text::LayoutJob::single_section(text.to_owned(), egui::text::TextFormat::simple(font, color));
+    job.wrap = egui::text::TextWrapping { max_width: width.max(1.0), max_rows: 3, break_anywhere: false, overflow_character: Some('…') };
+    job.halign = egui::Align::Center;
+    ui.painter().layout_job(job)
+}
+
 /// The backspace glyph of the keypad, in the icons' stroke.
 pub fn backspace(color: Color32, size: f32) -> Image<'static> {
     let svg = r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 5H9l-6 7 6 7h12z"/><path d="M17 9l-5 6M12 9l5 6"/></svg>"##;

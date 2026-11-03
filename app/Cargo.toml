@@ -1,13 +1,13 @@
 [package]
 name = "best-deck-mobile"
 # Shown on the phone as the app's version.
-version = "2.0.5"
+version = "2.0.6"
 edition = "2024"
 publish = false
 
 [package.metadata.android]
 # Android's versionCode. Every release needs a higher one; `cargo xtask publish --bump` raises it.
-version-code = 11
+version-code = 12
 
 [lib]
 name = "best_deck"
