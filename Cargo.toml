@@ -1,0 +1,9 @@
+[workspace]
+members = ["app", "xtask"]
+resolver = "3"
+
+[profile.release]
+# A smaller APK; the phone downloads every update over Wi-Fi.
+lto = true
+codegen-units = 1
+strip = true

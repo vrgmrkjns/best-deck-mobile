@@ -1,0 +1,36 @@
+[package]
+name = "best-deck-mobile"
+# Shown on the phone as the app's version.
+version = "2.0.0"
+edition = "2024"
+publish = false
+
+[package.metadata.android]
+# Android's versionCode. Every release needs a higher one; `cargo xtask publish --bump` raises it.
+version-code = 6
+
+[lib]
+name = "best_deck"
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "best-deck-desktop"
+path = "src/main.rs"
+
+[dependencies]
+eframe = { version = "0.37", default-features = false, features = ["default_fonts", "glow"] }
+egui = "0.37"
+egui_extras = { version = "0.37", features = ["svg"] }
+image = { version = "0.25", default-features = false, features = ["png"] }
+log = "0.4"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+tungstenite = { version = "0.30", default-features = false, features = ["handshake"] }
+ureq = { version = "3", default-features = false }
+
+[target.'cfg(target_os = "android")'.dependencies]
+eframe = { version = "0.37", default-features = false, features = ["android-native-activity"] }
+android_logger = "0.15"
+jni = "0.21"
+winit = { version = "0.30", default-features = false, features = ["android-native-activity"] }

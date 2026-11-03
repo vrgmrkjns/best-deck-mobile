@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The whole app is native Rust (app/), run by the system's NativeActivity; the APK has no Java code.
+     cargo xtask fills in the version and SDK levels. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.vrgmrkjns.best_deck">
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Updates come from the PC and are handed to the system installer. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
+    <!-- The deck keeps the screen on while it is on show. -->
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
+    <!-- A tick under the finger when a key fires. -->
+    <uses-permission android:name="android.permission.VIBRATE"/>
+    <uses-feature android:glEsVersion="0x00020000" android:required="true"/>
+    <!-- The host is a plain ws:// server on the local network. -->
+    <application
+        android:label="best-deck"
+        android:icon="@mipmap/ic_launcher"
+        android:hasCode="false"
+        android:extractNativeLibs="false"
+        android:usesCleartextTraffic="true"
+        android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
+        <activity
+            android:name="android.app.NativeActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|screenLayout|density|uiMode|locale|layoutDirection|fontScale"
+            android:windowSoftInputMode="adjustResize">
+            <meta-data android:name="android.app.lib_name" android:value="best_deck"/>
+        </activity>
+        <!-- The launcher entry keeps the earlier app's name, so home-screen icons survive the update. -->
+        <activity-alias
+            android:name=".MainActivity"
+            android:targetActivity="android.app.NativeActivity"
+            android:exported="true">
+            <!-- NativeActivity reads this from the component it was started as. -->
+            <meta-data android:name="android.app.lib_name" android:value="best_deck"/>
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity-alias>
+    </application>
+</manifest>
